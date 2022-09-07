@@ -67,6 +67,7 @@ func TestFindNodeInClusterByIP(t *testing.T) {
 	}
 }
 
+//nolint: dupl
 func TestGetClusterVersion(t *testing.T) {
 	cases := []struct {
 		name           string
@@ -112,6 +113,7 @@ func TestGetClusterVersion(t *testing.T) {
 	}
 }
 
+//nolint: dupl
 func TestGetCRI(t *testing.T) {
 	cases := []struct {
 		name           string
