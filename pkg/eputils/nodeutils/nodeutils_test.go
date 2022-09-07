@@ -36,7 +36,7 @@ func TestFindNodeInClusterByIP(t *testing.T) {
 			name: "find successful",
 			nodelist: &corev1.NodeList{
 				Items: []corev1.Node{
-					corev1.Node{
+					{
 						Status: corev1.NodeStatus{
 							Addresses: []corev1.NodeAddress{
 								{Address: "192.168.1.1"},
@@ -83,7 +83,7 @@ func TestGetClusterVersion(t *testing.T) {
 			name: "get version",
 			nodelist: &corev1.NodeList{
 				Items: []corev1.Node{
-					corev1.Node{
+					{
 						Status: corev1.NodeStatus{
 							NodeInfo: corev1.NodeSystemInfo{
 								KubeletVersion: "1.1",
