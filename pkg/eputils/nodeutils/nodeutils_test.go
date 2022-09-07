@@ -129,7 +129,7 @@ func TestGetCRI(t *testing.T) {
 			name: "get version",
 			nodelist: &corev1.NodeList{
 				Items: []corev1.Node{
-					corev1.Node{
+					{
 						Status: corev1.NodeStatus{
 							NodeInfo: corev1.NodeSystemInfo{
 								ContainerRuntimeVersion: "1.9",
