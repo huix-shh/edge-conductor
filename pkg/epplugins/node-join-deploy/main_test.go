@@ -11,98 +11,99 @@
 package nodejoindeploy
 
 import (
-	"testing"
-	nodeutils "github.com/intel/edge-conductor/pkg/eputils/nodeutils"
-	"github.com/undefinedlabs/go-mpatch"
 	"errors"
 	pluginapi "github.com/intel/edge-conductor/pkg/api/plugins"
-	kubeutils "github.com/intel/edge-conductor/pkg/eputils/kubeutils"
-	corev1 "k8s.io/api/core/v1"
 	eputils "github.com/intel/edge-conductor/pkg/eputils"
-	kubeadmapiv1 "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/v1beta3"
+	kubeutils "github.com/intel/edge-conductor/pkg/eputils/kubeutils"
+	nodeutils "github.com/intel/edge-conductor/pkg/eputils/nodeutils"
+	"github.com/undefinedlabs/go-mpatch"
 	"golang.org/x/crypto/ssh"
-	cmdutil "k8s.io/kubernetes/cmd/kubeadm/app/cmd/util"
-	kubeadmcmd "k8s.io/kubernetes/cmd/kubeadm/app/cmd"
-	"k8s.io/client-go/kubernetes"
 	"io"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
+	kubeadmapiv1 "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/v1beta3"
+	kubeadmcmd "k8s.io/kubernetes/cmd/kubeadm/app/cmd"
+	cmdutil "k8s.io/kubernetes/cmd/kubeadm/app/cmd/util"
+	"testing"
 )
 
 var (
 	patch_genconfig_failed_loops = 0
+	testError                    = errors.New("testing")
 )
 
 func TestGetNodeJoinCMD(t *testing.T) {
 	patch_client_failed := func() []*mpatch.Patch {
 		patch1, _ := mpatch.PatchMethod(kubeutils.ClientFromEPKubeConfig,
 			func(*pluginapi.Filecontent) (*kubernetes.Clientset, error) {
-				return nil, errors.New("testing")
-		})
+				return nil, testError
+			})
 		return []*mpatch.Patch{patch1}
 	}
 	patch_createtoken_failed := func() []*mpatch.Patch {
 		patch1, _ := mpatch.PatchMethod(kubeutils.ClientFromEPKubeConfig,
 			func(*pluginapi.Filecontent) (*kubernetes.Clientset, error) {
-				return &kubernetes.Clientset{},nil
-		})
+				return &kubernetes.Clientset{}, nil
+			})
 		patch2, _ := mpatch.PatchMethod(cmdutil.DefaultInitConfiguration,
 			func() *kubeadmapiv1.InitConfiguration {
 				return &kubeadmapiv1.InitConfiguration{}
-		})
+			})
 		patch3, _ := mpatch.PatchMethod(kubeadmcmd.RunCreateToken,
 			func(io.Writer, kubernetes.Interface, string, *kubeadmapiv1.InitConfiguration, bool, string, string) error {
-				return errors.New("testing")
-		})
+				return testError
+			})
 
-		return []*mpatch.Patch{patch1,patch2, patch3}
+		return []*mpatch.Patch{patch1, patch2, patch3}
 	}
 
 	patch_successful := func() []*mpatch.Patch {
 		patch1, _ := mpatch.PatchMethod(kubeutils.ClientFromEPKubeConfig,
 			func(*pluginapi.Filecontent) (*kubernetes.Clientset, error) {
-				return &kubernetes.Clientset{},nil
-		})
+				return &kubernetes.Clientset{}, nil
+			})
 		patch2, _ := mpatch.PatchMethod(cmdutil.DefaultInitConfiguration,
 			func() *kubeadmapiv1.InitConfiguration {
 				return &kubeadmapiv1.InitConfiguration{}
-		})
+			})
 		patch3, _ := mpatch.PatchMethod(kubeadmcmd.RunCreateToken,
 			func(io.Writer, kubernetes.Interface, string, *kubeadmapiv1.InitConfiguration, bool, string, string) error {
 				return nil
-		})
+			})
 
-		return []*mpatch.Patch{patch1,patch2, patch3}
+		return []*mpatch.Patch{patch1, patch2, patch3}
 	}
 
 	cases := []struct {
-		name		string
-		param1		*pluginapi.Filecontent
-		param2		string
-		expectedOutput	string
-		expectedErr	bool
+		name           string
+		param1         *pluginapi.Filecontent
+		param2         string
+		expectedOutput string
+		expectedErr    bool
 		funcBeforeTest func() []*mpatch.Patch
 	}{
 		{
-			name:		"Get ClientSet Failed",
-			param1:	&pluginapi.Filecontent{},
-			param2:	"",
-			expectedOutput:	"",
-			expectedErr:	true,
-			funcBeforeTest:	patch_client_failed,
+			name:           "Get ClientSet Failed",
+			param1:         &pluginapi.Filecontent{},
+			param2:         "",
+			expectedOutput: "",
+			expectedErr:    true,
+			funcBeforeTest: patch_client_failed,
 		},
 		{
-			name:		"RunCreateToken",
-			param1:	&pluginapi.Filecontent{},
-			param2:	"",
-			expectedOutput:	"",
-			expectedErr:	true,
-			funcBeforeTest:	patch_createtoken_failed,
+			name:           "RunCreateToken",
+			param1:         &pluginapi.Filecontent{},
+			param2:         "",
+			expectedOutput: "",
+			expectedErr:    true,
+			funcBeforeTest: patch_createtoken_failed,
 		},
 		{
-			name:		"successful",
-			param1:	&pluginapi.Filecontent{},
-			param2:	"",
-			expectedOutput:	"",
-			expectedErr:	false,
+			name:           "successful",
+			param1:         &pluginapi.Filecontent{},
+			param2:         "",
+			expectedOutput: "",
+			expectedErr:    false,
 			funcBeforeTest: patch_successful,
 		},
 	}
@@ -118,22 +119,22 @@ func TestGetNodeJoinCMD(t *testing.T) {
 						if err != nil {
 							t.Fatal(err)
 						}
-					}(t,p)
+					}(t, p)
 				}
 			}
 
-			result,err := GetNodeJoinCMD(tc.param1, tc.param2);
+			result, err := GetNodeJoinCMD(tc.param1, tc.param2)
 			if err != nil {
 				if tc.expectedErr {
 					t.Log("Error expected.")
 					return
 				} else {
-					t.Logf("Failed to run GetNodeJoinCMD when input is %v, %v.",tc.param1,tc.param2 )
+					t.Logf("Failed to run GetNodeJoinCMD when input is %v, %v.", tc.param1, tc.param2)
 					t.Error(result)
 				}
-			 }
+			}
 
-			if result !=  tc.expectedOutput {
+			if result != tc.expectedOutput {
 				t.Logf("The expected value is not match")
 			}
 		})
@@ -144,36 +145,36 @@ func TestPluginMain(t *testing.T) {
 	patch_kubeconfig_failed := func() []*mpatch.Patch {
 		patch1, _ := mpatch.PatchMethod(nodeutils.GetKubeConfigContent,
 			func(string) (*pluginapi.Filecontent, error) {
-				return nil, errors.New("testing")
-		})
+				return nil, testError
+			})
 		return []*mpatch.Patch{patch1}
 	}
 	patch_getnode_failed := func() []*mpatch.Patch {
 		patch1, _ := mpatch.PatchMethod(nodeutils.GetKubeConfigContent,
 			func(string) (*pluginapi.Filecontent, error) {
-				return &pluginapi.Filecontent{Content:""}, nil
-		})
+				return &pluginapi.Filecontent{Content: ""}, nil
+			})
 		patch2, _ := mpatch.PatchMethod(kubeutils.GetNodeList,
 			func(*pluginapi.Filecontent, string) (*corev1.NodeList, error) {
-				return nil,errors.New("testing")
-		})
-		return []*mpatch.Patch{patch1,patch2}
+				return nil, testError
+			})
+		return []*mpatch.Patch{patch1, patch2}
 	}
 
 	patch_genconfig_failed := func() []*mpatch.Patch {
 		patch1, _ := mpatch.PatchMethod(nodeutils.GetKubeConfigContent,
 			func(string) (*pluginapi.Filecontent, error) {
-				return &pluginapi.Filecontent{Content:""}, nil
-		})
+				return &pluginapi.Filecontent{Content: ""}, nil
+			})
 		patch2, _ := mpatch.PatchMethod(kubeutils.GetNodeList,
 			func(*pluginapi.Filecontent, string) (*corev1.NodeList, error) {
-				return &corev1.NodeList{},nil
-		})
+				return &corev1.NodeList{}, nil
+			})
 		patch3, _ := mpatch.PatchMethod(nodeutils.GetCRI,
 			func(*corev1.NodeList) string {
 				return ""
-		})
-		patch4, _:= mpatch.PatchMethod(nodeutils.FindNodeInClusterByIP,
+			})
+		patch4, _ := mpatch.PatchMethod(nodeutils.FindNodeInClusterByIP,
 			func(*corev1.NodeList, string) bool {
 				patch_genconfig_failed_loops++
 				if patch_genconfig_failed_loops == 1 {
@@ -181,85 +182,85 @@ func TestPluginMain(t *testing.T) {
 				} else {
 					return false
 				}
-		})
-		patch5, _:= mpatch.PatchMethod(GetNodeJoinCMD,
+			})
+		patch5, _ := mpatch.PatchMethod(GetNodeJoinCMD,
 			func(*pluginapi.Filecontent, string) (string, error) {
-				return "", errors.New("testing")
-		})
-		patch6, _:= mpatch.PatchMethod(eputils.GenSSHConfig,
+				return "", testError
+			})
+		patch6, _ := mpatch.PatchMethod(eputils.GenSSHConfig,
 			func(*pluginapi.Node) (*ssh.ClientConfig, error) {
-				return nil, errors.New("testing")
-		})
-		return []*mpatch.Patch{patch1,patch2,patch3,patch4,patch5,patch6}
+				return nil, testError
+			})
+		return []*mpatch.Patch{patch1, patch2, patch3, patch4, patch5, patch6}
 	}
 	patch_enable_container_failed := func() []*mpatch.Patch {
 		patch1, _ := mpatch.PatchMethod(nodeutils.GetKubeConfigContent,
 			func(string) (*pluginapi.Filecontent, error) {
-				return &pluginapi.Filecontent{Content:""}, nil
-		})
+				return &pluginapi.Filecontent{Content: ""}, nil
+			})
 		patch2, _ := mpatch.PatchMethod(kubeutils.GetNodeList,
 			func(*pluginapi.Filecontent, string) (*corev1.NodeList, error) {
-				return &corev1.NodeList{},nil
-		})
+				return &corev1.NodeList{}, nil
+			})
 		patch3, _ := mpatch.PatchMethod(nodeutils.GetCRI,
 			func(*corev1.NodeList) string {
 				return "containerd"
-		})
-		patch4, _:= mpatch.PatchMethod(nodeutils.FindNodeInClusterByIP,
+			})
+		patch4, _ := mpatch.PatchMethod(nodeutils.FindNodeInClusterByIP,
 			func(*corev1.NodeList, string) bool {
 				return false
-		})
-		patch5, _:= mpatch.PatchMethod(GetNodeJoinCMD,
+			})
+		patch5, _ := mpatch.PatchMethod(GetNodeJoinCMD,
 			func(*pluginapi.Filecontent, string) (string, error) {
-				return "", errors.New("testing")
-		})
-		patch6, _:= mpatch.PatchMethod(eputils.GenSSHConfig,
+				return "", testError
+			})
+		patch6, _ := mpatch.PatchMethod(eputils.GenSSHConfig,
 			func(*pluginapi.Node) (*ssh.ClientConfig, error) {
 				return &ssh.ClientConfig{}, nil
-		})
-		patch7, _:= mpatch.PatchMethod(eputils.RunRemoteCMD,
+			})
+		patch7, _ := mpatch.PatchMethod(eputils.RunRemoteCMD,
 			func(string, *ssh.ClientConfig, string) error {
-				return errors.New("testing")
-		})
-		return []*mpatch.Patch{patch1,patch2,patch3,patch4,patch5,patch6,patch7}
+				return testError
+			})
+		return []*mpatch.Patch{patch1, patch2, patch3, patch4, patch5, patch6, patch7}
 	}
 	patch_successful := func() []*mpatch.Patch {
 		patch1, _ := mpatch.PatchMethod(nodeutils.GetKubeConfigContent,
 			func(string) (*pluginapi.Filecontent, error) {
-				return &pluginapi.Filecontent{Content:""}, nil
-		})
+				return &pluginapi.Filecontent{Content: ""}, nil
+			})
 		patch2, _ := mpatch.PatchMethod(kubeutils.GetNodeList,
 			func(*pluginapi.Filecontent, string) (*corev1.NodeList, error) {
-				return &corev1.NodeList{},nil
-		})
+				return &corev1.NodeList{}, nil
+			})
 		patch3, _ := mpatch.PatchMethod(nodeutils.GetCRI,
 			func(*corev1.NodeList) string {
 				return "testing"
-		})
-		patch4, _:= mpatch.PatchMethod(nodeutils.FindNodeInClusterByIP,
+			})
+		patch4, _ := mpatch.PatchMethod(nodeutils.FindNodeInClusterByIP,
 			func(*corev1.NodeList, string) bool {
 				return false
-		})
-		patch5, _:= mpatch.PatchMethod(GetNodeJoinCMD,
+			})
+		patch5, _ := mpatch.PatchMethod(GetNodeJoinCMD,
 			func(*pluginapi.Filecontent, string) (string, error) {
-				return "", errors.New("testing")
-		})
-		patch6, _:= mpatch.PatchMethod(eputils.GenSSHConfig,
+				return "", testError
+			})
+		patch6, _ := mpatch.PatchMethod(eputils.GenSSHConfig,
 			func(*pluginapi.Node) (*ssh.ClientConfig, error) {
 				return &ssh.ClientConfig{}, nil
-		})
-		patch7, _:= mpatch.PatchMethod(eputils.RunRemoteCMD,
+			})
+		patch7, _ := mpatch.PatchMethod(eputils.RunRemoteCMD,
 			func(string, *ssh.ClientConfig, string) error {
 				return nil
-		})
-		return []*mpatch.Patch{patch1,patch2,patch3,patch4,patch5,patch6,patch7}
+			})
+		return []*mpatch.Patch{patch1, patch2, patch3, patch4, patch5, patch6, patch7}
 	}
 
 	cases := []struct {
 		name                  string
 		input, expectedOutput map[string][]byte
 		expectError           bool
-		funcBeforeTest func() []*mpatch.Patch
+		funcBeforeTest        func() []*mpatch.Patch
 	}{
 		// TODO: Add the values to complete your test cases.
 		// Add the values for input and expectedoutput with particular struct marshal data in json format.
@@ -271,7 +272,7 @@ func TestPluginMain(t *testing.T) {
 				"ep-params": []byte(`{"kubeconfig": ""}`),
 			},
 			funcBeforeTest: patch_kubeconfig_failed,
-			expectError: true,
+			expectError:    true,
 		},
 		{
 			name: "get node list failed",
@@ -279,7 +280,7 @@ func TestPluginMain(t *testing.T) {
 				"ep-params": []byte(`{"kubeconfig": ""}`),
 			},
 			funcBeforeTest: patch_getnode_failed,
-			expectError: true,
+			expectError:    true,
 		},
 		{
 			name: "gen config failed",
@@ -289,7 +290,7 @@ func TestPluginMain(t *testing.T) {
 						     }}}`),
 			},
 			funcBeforeTest: patch_genconfig_failed,
-			expectError: true,
+			expectError:    true,
 		},
 		{
 			name: "enable container failed",
@@ -299,7 +300,7 @@ func TestPluginMain(t *testing.T) {
 						     }}}`),
 			},
 			funcBeforeTest: patch_enable_container_failed,
-			expectError: true,
+			expectError:    true,
 		},
 		{
 			name: "successful",
@@ -309,7 +310,7 @@ func TestPluginMain(t *testing.T) {
 						     }}}`),
 			},
 			funcBeforeTest: patch_successful,
-			expectError: true,
+			expectError:    true,
 		},
 	}
 
@@ -329,12 +330,12 @@ func TestPluginMain(t *testing.T) {
 						if err != nil {
 							t.Fatal(err)
 						}
-					}(t,p)
+					}(t, p)
 				}
 			}
 			testOutput := generateOutput(nil)
 
-			 if result := PluginMain(input, &testOutput); result != nil {
+			if result := PluginMain(input, &testOutput); result != nil {
 				if tc.expectError {
 					t.Log("Error expected.")
 					return
@@ -342,7 +343,7 @@ func TestPluginMain(t *testing.T) {
 					t.Logf("Failed to run PluginMain when input is %s.", tc.input)
 					t.Error(result)
 				}
-			 }
+			}
 
 			_ = testOutput
 		})
